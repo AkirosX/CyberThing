@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+
+<head>
+    <meta charset='utf-8' />
+    <title>CyberSecurity Incident Tracker And Briefing Tool</title>
+    <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
+    <script src='https://api.tiles.mapbox.com/mapbox-gl-js/v1.4.1/mapbox-gl.js'></script>
+    <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v1.4.1/mapbox-gl.css' rel='stylesheet' />
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        #topBar {
+            position: absolute;
+            width: 100%;
+            height: 4.5%;
+            top: 0;
+            left: 0;
+            color: white;
+            font-family: Arial, Helvetica, sans-serif;
+            vertical-align: bottom;
+            font-size:250%;
+            background: linear-gradient(to right,rgb(172, 93, 2), rgba(255,255,255, .4));
+        }
+
+        #features {
+            position: absolute;
+            left: 0;
+            top: 4.5%;
+            height: 100%;
+            width: 300px;
+            overflow: auto;
+            color: white;
+            background: rgba(44, 44, 44, .9);
+        }
+
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+            overflow: clip;
+        }
+
+        #map canvas {
+            cursor: crosshair;
+        }
+    </style>
+</head>
+<html>
+
+<body>
+
+    <script
+        src='https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v4.4.2/mapbox-gl-geocoder.min.js'></script>
+    <link rel='stylesheet'
+        href='https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v4.4.2/mapbox-gl-geocoder.css'
+        type='text/css' />
+    <!-- Promise polyfill script required to use Mapbox GL Geocoder in IE 11 -->
+    <script src="https://cdn.jsdelivr.net/npm/es6-promise@4/dist/es6-promise.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/es6-promise@4/dist/es6-promise.auto.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+
+    <div id='map'></div>
+    <div id='topBar'>Cyber Security Incident Tracker V0.1 - SLt Rodgers</div>
+    <div id='features'></div>
+
+
+    <script>
+        mapboxgl.accessToken = 'pk.eyJ1IjoicXVpeDB0ZSIsImEiOiJjazFiZG5zcm8waGJlM2Judmt2ODVwYzR2In0.p71hAO0DRjQo2D6k7IzCAA';
+
+        var map = new mapboxgl.Map({
+            style: 'mapbox://styles/quix0te/ck2awbjgh08c11cnwgjq9f0db',
+            center: [-63.5777634, 44.6603207],
+            zoom: 15.5,
+            pitch: 60,
+            bearing: -90,
+            container: 'map',
+            antialias: true
+        });
+
+        map.addControl(new MapboxGeocoder({
+            accessToken: mapboxgl.accessToken,
+            mapboxgl: mapboxgl
+        }));
+
+        // The 'building' layer in the mapbox-streets vector source contains building-height
+        // data from OpenStreetMap.
+        map.on('load', function () {
+            // Insert the layer beneath any symbol layer.
+            var layers = map.getStyle().layers;
+
+            var labelLayerId;
+            for (var i = 0; i < layers.length; i++) {
+                if (layers[i].type === 'symbol' && layers[i].layout['text-field']) {
+                    labelLayerId = layers[i].id;
+                    break;
+                }
+            }
+
+            map.addLayer({
+                'id': '3d-buildings',
+                'source': 'composite',
+                'source-layer': 'building',
+                'filter': ['==', 'extrude', 'true'],
+                'type': 'fill-extrusion',
+                'minzoom': 10,
+                'paint': {
+                    'fill-extrusion-color': '#001133',
+
+                    // use an 'interpolate' expression to add a smooth transition effect to the
+                    // buildings as the user zooms in
+                    'fill-extrusion-height': [
+                        "interpolate", ["linear"], ["zoom"],
+                        10, 0,
+                        10.05, ["get", "height"]
+                    ],
+                    'fill-extrusion-base': [
+                        "interpolate", ["linear"], ["zoom"],
+                        10, 0,
+                        10.05, ["get", "min_height"]
+                    ],
+                    'fill-extrusion-opacity': .65
+                }
+            }, labelLayerId);
+        });
+
+        var popup = new mapboxgl.Popup({ closeOnClick: false });
+
+        map.on('click', 'building', function (e) {
+            var feature = e.features[0]
+            var sideBar = document.getElementById('features');
+            sideBar.innerHTML = feature.properties.type;
+
+            var Url = 'https://nominatim.openstreetmap.org/reverse?lat=' + e.lngLat.lat + '&lon=' + e.lngLat.lng + '&format=json';
+
+            httpGetAsync(Url, testCallback);
+            popup.setLngLat(e.lngLat);
+            popup.addTo(map);
+        });
+
+
+        function httpGetAsync(theUrl, callback) {
+            var xmlHttp = new XMLHttpRequest();
+            xmlHttp.onreadystatechange = function () {
+                if (xmlHttp.readyState == 4 && xmlHttp.status == 200)
+                    callback(xmlHttp.responseText);
+            }
+            xmlHttp.open("GET", theUrl, true); // true for asynchronous 
+            xmlHttp.send(null);
+        }
+
+        function testCallback(e) {
+            var data = JSON.parse(e);
+            var test = '<h3>Name: ' + data.address.building + '</h3>' + '<h3> Address: ' + data.address.house_number + ' ' + data.address.road + ', ' + data.address.city + ', ' + data.address.state + ', ' + data.address.country + ', ' + data.address.postcode + '</h3>'
+            popup.setHTML(test.replace("undefined","[NO DATA]"));
+        }
+
+    </script>
+
+</body>
+
+</html>
